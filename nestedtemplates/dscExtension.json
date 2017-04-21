@@ -1,0 +1,63 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualMachineName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of the VM"
+            }
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location of the extension resource"
+            }
+        },
+        "apiVersion": {
+            "type": "string",
+            "metadata": {
+                "description": "Api version supported by the provider"
+            }
+        },
+        "dscScriptUrl": {
+           "type": "string",
+           "metadata": {
+                "description": "Url pointing to zip file containing DSC scripts"
+            }
+        },
+        "dscConfigurationName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of the configuration object in DSC scripts to be applied"
+            }
+        },
+        "dscConfigurationFunctionName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of the configuration object in DSC scripts to be applied"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachineName'), '/', parameters('dscConfigurationName'))]",
+            "apiVersion": "[parameters('apiVersion')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publisher": "Microsoft.Powershell",
+                "type": "DSC",
+                "typeHandlerVersion": "2.9",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "modulesUrl": "[parameters('dscScriptUrl')]",
+                    "configurationFunction": "[parameters('dscConfigurationFunctionName')]"
+                },
+                "protectedSettings": {}
+            }
+        }
+    ],
+    "outputs": {}
+}

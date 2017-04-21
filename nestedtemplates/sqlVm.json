@@ -1,0 +1,231 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualMachineName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of the virtual machine"
+            }
+        },
+        "virtualMachineSize": {
+           "type": "string",
+           "metadata": {
+                "description": "Size of the virtual machine"
+            }
+        },
+        "location": {
+           "type": "string",
+           "metadata": {
+                "description": "Location of the virtual machine"
+            }
+        },
+        "apiVersion": {
+           "type": "string",
+           "metadata": {
+                "description": "Api version supported by the provider"
+            }
+        },
+        "adminUsername": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of local Administrator account on virtual machine and in the domain"
+            }
+        },
+        "adminPassword": {
+           "type": "securestring",
+           "metadata": {
+                "description": "Password of local Administrator account on virtual machine and in the domain"
+            }
+        },
+        "imageReference": {
+           "type": "object",
+           "metadata": {
+                "description": "Virtual machine image reference configuration"
+            }
+        },
+        "storageAccountType": {
+           "type": "string",
+           "allowedValues": [
+               "Standard_LRS",
+               "Premium_LRS"
+           ],
+           "metadata": {
+                "description": "Storage account type for virtual machine"
+            }
+        },
+        "dataDiskSize": {
+            "type": "string",
+            "metadata": {
+                "description": "Size (in GB) of the data disk"
+            }
+        },
+        "virtualMachineNetworkInterfaceName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of the network interface that will be attached to virtual machine"
+            }
+        },
+        "sqlAutopatchingDayOfWeek": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlAutopatchingStartHour": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlAutopatchingWindowDuration": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlConnectivityType": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlPortNumber": {
+           "type": "int",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlStorageWorkloadType": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlStorageDisksCount": {
+           "type": "int",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlStorageStartingDeviceId": {
+           "type": "int",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "sqlStorageDisksConfigurationType": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        },
+        "rServicesEnabled": {
+           "type": "string",
+           "metadata": {
+                "description": ""
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "apiVersion": "[parameters('apiVersion')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachineName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": "[parameters('imageReference')]",
+                    "osDisk": {
+                        "name": "[concat(parameters('virtualMachineName'), '-osdisk')]",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('storageAccountType')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    },
+                    "dataDisks": [
+                        {
+                            "name": "[concat(parameters('virtualMachineName'), '-disk-1')]",
+                            "createOption": "empty",
+                            "lun": 0,
+                            "diskSizeGB": "[parameters('dataDiskSize')]",
+                            "caching": "ReadOnly",
+                            "managedDisk": {
+                                "storageAccountType": "[parameters('storageAccountType')]"
+                            }
+                        }
+                    ]
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId(resourceGroup().name, 'Microsoft.Network/networkInterfaces', parameters('virtualMachineNetworkInterfaceName'))]"
+                        }
+                    ]
+                }
+            },
+            "resources": []
+        },
+        {
+            "apiVersion": "[parameters('apiVersion')]",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachineName'), '/SqlIaasExtension')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+            ],
+            "properties": {
+                "type": "SqlIaaSAgent",
+                "publisher": "Microsoft.SqlServer.Management",
+                "typeHandlerVersion": "1.2",
+                "autoUpgradeMinorVersion": "true",
+                "settings": {
+                    "AutoTelemetrySettings": {
+                        "Region": "[parameters('location')]"
+                    },
+                    "AutoPatchingSettings": {
+                        "PatchCategory": "WindowsMandatoryUpdates",
+                        "Enable": true,
+                        "DayOfWeek": "[parameters('sqlAutopatchingDayOfWeek')]",
+                        "MaintenanceWindowStartingHour": "[parameters('sqlAutopatchingStartHour')]",
+                        "MaintenanceWindowDuration": "[parameters('sqlAutopatchingWindowDuration')]"
+                    },
+                    "KeyVaultCredentialSettings": {
+                        "Enable": false,
+                        "CredentialName": ""
+                    },
+                    "ServerConfigurationsManagementSettings": {
+                        "SQLConnectivityUpdateSettings": {
+                            "ConnectivityType": "[parameters('sqlConnectivityType')]",
+                            "Port": "[parameters('sqlPortNumber')]"
+                        },
+                        "SQLWorkloadTypeUpdateSettings": {
+                            "SQLWorkloadType": "[parameters('sqlStorageWorkloadType')]"
+                        },
+                        "SQLStorageUpdateSettings": {
+                            "DiskCount": "[parameters('sqlStorageDisksCount')]",
+                            "NumberOfColumns": "[parameters('sqlStorageDisksCount')]",
+                            "StartingDeviceID": "[parameters('sqlStorageStartingDeviceId')]",
+                            "DiskConfigurationType": "[parameters('sqlStorageDisksConfigurationType')]"
+                        },
+                        "AdditionalFeaturesServerConfigurations": {
+                            "IsRServicesEnabled": "[parameters('rServicesEnabled')]"
+                        }
+                    }
+                },
+                "protectedSettings": {}
+            }
+        }
+    ],
+    "outputs": {}
+}

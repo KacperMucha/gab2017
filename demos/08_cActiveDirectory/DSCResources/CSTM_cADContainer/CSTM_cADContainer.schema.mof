@@ -1,0 +1,7 @@
+[ClassVersion("1.0.0.0"), FriendlyName("cADContainer")]
+class CSTM_cADContainer : OMI_BaseResource
+{
+    [Key, Description("Specifies name for the container")] String ContainerName;
+    [Key, Description("Location of the container within Active Directory expressed as a Distinguished Name")] String Path;
+    [write,ValueMap{"Present", "Absent"},Values{"Present", "Absent"}] string Ensure;
+};

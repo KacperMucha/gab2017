@@ -1,0 +1,644 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of local Administrator account on VMs and in the domain"
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Password of local Administrator account on VMs and in the domain"
+            }
+        },
+        "dcVmSize": {
+            "type": "string",
+            "allowedValues": [],
+            "metadata": {
+                "description": "Size of AD domain controller VM"
+            }
+        },
+        "sqlVmSize": {
+            "type": "string",
+            "allowedValues": [],
+            "metadata": {
+                "description": "Size of SQL VM"
+            }
+        },
+        "sccmVmSize": {
+            "type": "string",
+            "allowedValues": [],
+            "metadata": {
+                "description": "Size of SCCM VM"
+            }
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "metadata": {
+                "description": "Vnet name"
+            }
+        },
+        "subnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Subnet name"
+            }
+        },
+        "repositoryRootUrl": {
+            "type": "string",
+            "metadata": {
+                "description": "Url to root of the files repository"
+            }
+        }
+    },
+    "variables": {
+        "templatesRootUrl": "[concat(parameters('repositoryRootUrl'), '/nestedtemplates')]",
+        "dscScriptsRootUrl": "[concat(parameters('repositoryRootUrl'), '/dsc')]",
+        "publicIpAddressApiVersion": "2017-04-01",
+        "virtualNetworkApiVersion": "2017-04-01",
+        "networkInterfaceApiVersion": "2017-04-01",
+        "virtualMachineApiVersion": "2017-03-30",
+        "dscExtensionApiVersion": "2017-03-30",
+        "virtualMachinesStorageAccountType": "Premium_LRS",
+        "virtualNetworkPrefix": "192.168.0.0/16",
+        "subnetPrefix": "192.168.0.0/24",
+        "virtualNetworkDnsServers": [
+            "192.168.0.5",
+            "168.63.129.16"
+        ],
+        "domainControllerVirtualMachineImageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2012-R2-Datacenter",
+            "version": "latest"
+        },
+        "sqlVirtualMachineImageReference": {
+            "publisher": "MicrosoftSQLServer",
+            "offer": "SQL2016SP1-WS2016",
+            "sku": "Standard",
+            "version": "latest"
+        },
+        "sccmVirtualMachineImageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2016-Datacenter",
+            "version": "latest"
+        },
+        "domainControllerVmName": "dc1",
+        "domainControllerVmPublicIpAddressName": "[concat(variables('domainControllerVmName'), '-pip1' )]",
+        "domainControllerVmPublicIpDnsLabel": "[concat(variables('domainControllerVmName'), '-endpoint1')]",
+        "domainControllerVmNetworkInterfaceName": "[concat(variables('domainControllerVmName'), '-nic1' )]",
+        "domainControllerDscExtensionUrl": "[concat(variables('dscScriptsRootUrl'), '/dcConfig.ps1.zip?raw=true')]",
+        "domainControllerDscExtensionConfigName": "InstallDomain",
+        "domainControllerDscExtensionConfigFunctionName": "dcConfig.ps1\\InstallDomain",
+        "sqlVmName": "sql1",
+        "sqlVmPublicIpAddressName": "[concat(variables('sqlVmName'), '-pip1' )]",
+        "sqlVmPublicIpDnsLabel": "[concat(variables('sqlVmName'), '-endpoint1')]",
+        "sqlVmNetworkInterfaceName": "[concat(variables('sqlVmName'), '-nic1' )]",
+        "sqlDataDiskSize": "1023",
+        "sqlAutopatchingDayOfWeek": "Sunday",
+        "sqlAutopatchingStartHour": "2",
+        "sqlAutopatchingWindowDuration": "60",
+        "sqlConnectivityType": "Private",
+        "sqlPortNumber": 1433,
+        "sqlStorageWorkloadType": "GENERAL",
+        "sqlStorageDisksCount": 1,
+        "sqlStorageStartingDeviceId": 2,
+        "sqlStorageDisksConfigurationType": "NEW",
+        "rServicesEnabled": "false",
+        "sqlDscExtensionUrl": "[concat(variables('dscScriptsRootUrl'), '/sqlConfig.ps1.zip?raw=true')]",
+        "sqlDscExtensionConfigName": "SQL",
+        "sqlDscExtensionConfigFunctionName": "sqlConfig.ps1\\SQL",
+        "sccmVmName": "cm1",
+        "sccmVmPublicIpAddressName": "[concat(variables('sccmVmName'), '-pip1' )]",
+        "sccmVmPublicIpDnsLabel": "[concat(variables('sccmVmName'), '-endpoint1')]",
+        "sccmVmNetworkInterfaceName": "[concat(variables('sccmVmName'), '-nic1' )]",
+        "sccmDscExtensionUrl": "[concat(variables('dscScriptsRootUrl'), '/sccmConfig.ps1.zip?raw=true')]",
+        "sccmDscExtensionConfigName": "SCCM",
+        "sccmDscExtensionConfigFunctionName": "sccmConfig.ps1\\SCCM",
+        "domainControllerNetworkInterfaceIpConfigurations": [
+            {
+                "name": "ipconfig1",
+                "properties": {
+                    "privateIPAddress": "192.168.0.5",
+                    "privateIPAllocationMethod": "Static",
+                    "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('domainControllerVmPublicIpAddressName'))]"
+                    },
+                    "subnet": {
+                        "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/', parameters('subnetName'))]"
+                    }
+                }
+            }
+        ],
+        "sqlNetworkInterfaceIpConfigurations": [
+            {
+                "name": "ipconfig1",
+                "properties": {
+                    "privateIPAddress": "192.168.0.6",
+                    "privateIPAllocationMethod": "Static",
+                    "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('sqlVmPublicIpAddressName'))]"
+                    },
+                    "subnet": {
+                        "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/', parameters('subnetName'))]"
+                    }
+                }
+            }
+        ],
+        "sccmNetworkInterfaceIpConfigurations": [
+            {
+                "name": "ipconfig1",
+                "properties": {
+                    "privateIPAddress": "192.168.0.7",
+                    "privateIPAllocationMethod": "Static",
+                    "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('sccmVmPublicIpAddressName'))]"
+                    },
+                    "subnet": {
+                        "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '/subnets/', parameters('subnetName'))]"
+                    }
+                }
+            }
+        ]
+    },
+    "resources": [
+        {
+            "name": "VirtualNetwork",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/virtualNetwork.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('virtualNetworkApiVersion')]"
+                    },
+                    "virtualNetworkPrefix": {
+                        "value": "[variables('virtualNetworkPrefix')]"
+                    },
+                    "subnetName": {
+                        "value": "[parameters('subnetName')]"
+                    },
+                    "subnetPrefix": {
+                        "value": "[variables('subnetPrefix')]"
+                    },
+                    "dnsServers": {
+                        "value": "[variables('virtualNetworkDnsServers')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "DomainControllerPublicIpAddress",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/publicIpAddress.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "publicIPAddressName": {
+                        "value": "[variables('domainControllerVmPublicIpAddressName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('publicIpAddressApiVersion')]"
+                    },
+                    "dnsLabelPrefix": {
+                        "value": "[variables('domainControllerVmPublicIpDnsLabel')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "DomainControllerNetworkInterface",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/VirtualNetwork",
+                "Microsoft.Resources/deployments/DomainControllerPublicIpAddress"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/networkInterface.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "networkInterfaceName": {
+                        "value": "[variables('domainControllerVmNetworkInterfaceName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('networkInterfaceApiVersion')]"
+                    },
+                    "ipConfigurations": {
+                        "value": "[variables('domainControllerNetworkInterfaceIpConfigurations')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "DomainControllerVirtualMachine",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/DomainControllerNetworkInterface"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/domainControllerVm.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualMachineName": { 
+                        "value": "[variables('domainControllerVmName')]" 
+                    },
+                    "virtualMachineSize": { 
+                        "value": "[parameters('dcVmSize')]" 
+                    },
+                    "location": { 
+                        "value": "[resourceGroup().location]" 
+                    },
+                    "apiVersion": { 
+                        "value": "[variables('virtualMachineApiVersion')]" 
+                    },
+                    "adminUsername": { 
+                        "value": "[parameters('adminUsername')]" 
+                    },
+                    "adminPassword": { 
+                        "value": "[parameters('adminPassword')]" 
+                    },
+                    "imageReference": { 
+                        "value": "[variables('domainControllerVirtualMachineImageReference')]" 
+                    },
+                    "storageAccountType": { 
+                        "value": "[variables('virtualMachinesStorageAccountType')]" 
+                    },
+                    "virtualMachineNetworkInterfaceName": { 
+                        "value": "[variables('domainControllerVmNetworkInterfaceName')]" 
+                    }
+                }
+            }
+        },
+        {
+            "name": "DomainControllerDscExtension",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/DomainControllerVirtualMachine"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/dscExtension.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualMachineName": { 
+                        "value": "[variables('domainControllerVmName')]" 
+                    },
+                    "location": { 
+                        "value": "[resourceGroup().location]" 
+                    },
+                    "apiVersion": { 
+                        "value": "[variables('dscExtensionApiVersion')]" 
+                    },
+                    "dscScriptUrl": { 
+                        "value": "[variables('domainControllerDscExtensionUrl')]" 
+                    },
+                    "dscConfigurationName": { 
+                        "value": "[variables('domainControllerDscExtensionConfigName')]"
+                    },
+                    "dscConfigurationFunctionName": { 
+                        "value": "[variables('domainControllerDscExtensionConfigFunctionName')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SqlPublicIpAddress",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/publicIpAddress.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "publicIPAddressName": {
+                        "value": "[variables('sqlVmPublicIpAddressName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('publicIpAddressApiVersion')]"
+                    },
+                    "dnsLabelPrefix": {
+                        "value": "[variables('sqlVmPublicIpDnsLabel')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SqlNetworkInterface",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/VirtualNetwork",
+                "Microsoft.Resources/deployments/SqlPublicIpAddress"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/networkInterface.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "networkInterfaceName": {
+                        "value": "[variables('sqlVmNetworkInterfaceName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('networkInterfaceApiVersion')]"
+                    },
+                    "ipConfigurations": {
+                        "value": "[variables('sqlNetworkInterfaceIpConfigurations')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SqlVirtualMachine",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/SqlNetworkInterface"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/sqlVm.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualMachineName": { 
+                        "value": "[variables('sqlVmName')]" 
+                    },
+                    "virtualMachineSize": { 
+                        "value": "[parameters('sqlVmSize')]" 
+                    },
+                    "location": { 
+                        "value": "[resourceGroup().location]" 
+                    },
+                    "apiVersion": { 
+                        "value": "[variables('virtualMachineApiVersion')]" 
+                    },
+                    "adminUsername": { 
+                        "value": "[parameters('adminUsername')]" 
+                    },
+                    "adminPassword": { 
+                        "value": "[parameters('adminPassword')]" 
+                    },
+                    "imageReference": { 
+                        "value": "[variables('sqlVirtualMachineImageReference')]" 
+                    },
+                    "storageAccountType": { 
+                        "value": "[variables('virtualMachinesStorageAccountType')]" 
+                    },
+                    "dataDiskSize": {
+                        "value": "[variables('sqlDataDiskSize')]"
+                    },
+                    "virtualMachineNetworkInterfaceName": { 
+                        "value": "[variables('sqlVmNetworkInterfaceName')]" 
+                    },
+                    "sqlAutopatchingDayOfWeek": {
+                        "value": "[variables('sqlAutopatchingDayOfWeek')]"
+                    },
+                    "sqlAutopatchingStartHour": {
+                        "value": "[variables('sqlAutopatchingStartHour')]"
+                    },
+                    "sqlAutopatchingWindowDuration": {
+                        "value": "[variables('sqlAutopatchingWindowDuration')]"
+                    },
+                    "sqlConnectivityType": {
+                        "value": "[variables('sqlConnectivityType')]"
+                    },
+                    "sqlPortNumber": {
+                        "value": "[variables('sqlPortNumber')]"
+                    },
+                    "sqlStorageWorkloadType": {
+                        "value": "[variables('sqlStorageWorkloadType')]"
+                    },
+                    "sqlStorageDisksCount": {
+                        "value": "[variables('sqlStorageDisksCount')]"
+                    },
+                    "sqlStorageStartingDeviceId": {
+                        "value": "[variables('sqlStorageStartingDeviceId')]"
+                    },
+                    "sqlStorageDisksConfigurationType": {
+                        "value": "[variables('sqlStorageDisksConfigurationType')]"
+                    },
+                    "rServicesEnabled": {
+                        "value": "[variables('rServicesEnabled')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SqlDscExtension",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/SqlVirtualMachine"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/dscExtension.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualMachineName": { 
+                        "value": "[variables('sqlVmName')]" 
+                    },
+                    "location": { 
+                        "value": "[resourceGroup().location]" 
+                    },
+                    "apiVersion": { 
+                        "value": "[variables('dscExtensionApiVersion')]" 
+                    },
+                    "dscScriptUrl": { 
+                        "value": "[variables('sqlDscExtensionUrl')]" 
+                    },
+                    "dscConfigurationName": { 
+                        "value": "[variables('sqlDscExtensionConfigName')]"
+                    },
+                    "dscConfigurationFunctionName": { 
+                        "value": "[variables('sqlDscExtensionConfigFunctionName')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SccmPublicIpAddress",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/publicIpAddress.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "publicIPAddressName": {
+                        "value": "[variables('sccmVmPublicIpAddressName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('publicIpAddressApiVersion')]"
+                    },
+                    "dnsLabelPrefix": {
+                        "value": "[variables('sccmVmPublicIpDnsLabel')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SccmNetworkInterface",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/VirtualNetwork",
+                "Microsoft.Resources/deployments/SccmPublicIpAddress"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/networkInterface.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "networkInterfaceName": {
+                        "value": "[variables('sccmVmNetworkInterfaceName')]"
+                    },
+                    "location": {
+                        "value": "[resourceGroup().location]"
+                    },
+                    "apiVersion": {
+                        "value": "[variables('networkInterfaceApiVersion')]"
+                    },
+                    "ipConfigurations": {
+                        "value": "[variables('sccmNetworkInterfaceIpConfigurations')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SccmVirtualMachine",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/SccmNetworkInterface"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/sccmVm.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualMachineName": { 
+                        "value": "[variables('sccmVmName')]" 
+                    },
+                    "virtualMachineSize": { 
+                        "value": "[parameters('sccmVmSize')]" 
+                    },
+                    "location": { 
+                        "value": "[resourceGroup().location]" 
+                    },
+                    "apiVersion": { 
+                        "value": "[variables('virtualMachineApiVersion')]" 
+                    },
+                    "adminUsername": { 
+                        "value": "[parameters('adminUsername')]" 
+                    },
+                    "adminPassword": { 
+                        "value": "[parameters('adminPassword')]" 
+                    },
+                    "imageReference": { 
+                        "value": "[variables('sccmVirtualMachineImageReference')]" 
+                    },
+                    "storageAccountType": { 
+                        "value": "[variables('virtualMachinesStorageAccountType')]" 
+                    },
+                    "virtualMachineNetworkInterfaceName": { 
+                        "value": "[variables('sccmVmNetworkInterfaceName')]" 
+                    }
+                }
+            }
+        },
+        {
+            "name": "SccmDscExtension",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/SccmVirtualMachine"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[concat(variables('templatesRootUrl'), '/dscExtension.json?raw=true')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualMachineName": { 
+                        "value": "[variables('sccmVmName')]" 
+                    },
+                    "location": { 
+                        "value": "[resourceGroup().location]" 
+                    },
+                    "apiVersion": { 
+                        "value": "[variables('dscExtensionApiVersion')]" 
+                    },
+                    "dscScriptUrl": { 
+                        "value": "[variables('sccmDscExtensionUrl')]" 
+                    },
+                    "dscConfigurationName": { 
+                        "value": "[variables('sccmDscExtensionConfigName')]"
+                    },
+                    "dscConfigurationFunctionName": { 
+                        "value": "[variables('sccmDscExtensionConfigFunctionName')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}

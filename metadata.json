@@ -1,0 +1,7 @@
+{
+  "itemDisplayName": "SCCM lab environment",
+  "description": "Deploy an SCCM lab environment on three VMs with DSC extensions - domain controller, SQL, SCCM.",
+  "summary": "This template deploys SCCM lab environment.",
+  "githubUsername": "KacperMucha",
+  "dateUpdated": "2017-04-21"
+}

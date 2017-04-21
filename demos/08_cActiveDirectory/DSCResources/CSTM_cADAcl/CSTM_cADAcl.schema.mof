@@ -1,0 +1,10 @@
+[ClassVersion("1.0.1.0"), FriendlyName("cADAcl")]
+class CSTM_cADAcl : OMI_BaseResource
+{
+    [Key, Description("Object's path expressed as a Distinguished Name")] String Path;
+    [Required, Description("Specifies identity for which access will be modified in format DOMAIN\\Username")] String IdentityReference;
+    [Required, Description("Specifies ACE's rights"),ValueMap{"CreateChild","Delete","DeleteChild","DeleteTree","ExtendedRight","GenericAll","GenericExecute","GenericRead","GenericWrite","ListChildren","ListObject","ReadControl","ReadProperty","Self","Synchronize","WriteDacl","WriteOwner","WriteProperty"},Values{"CreateChild","Delete","DeleteChild","DeleteTree","ExtendedRight","GenericAll","GenericExecute","GenericRead","GenericWrite","ListChildren","ListObject","ReadControl","ReadProperty","Self","Synchronize","WriteDacl","WriteOwner","WriteProperty"}] String ActiveDirectoryRight[];
+    [Required, Description("Specifies ACE'a access control type"),ValueMap{"Allow","Deny"},Values{"Allow","Deny"}] String AccessControlType;
+    [Required, Description("Specifies ACE's security inheritance type"),ValueMap{"All","Children","Descendents","None","SelfAndChildren"},Values{"All","Children","Descendents","None","SelfAndChildren"}] String ActiveDirectorySecurityInheritance;
+    [write,ValueMap{"Present", "Absent"},Values{"Present", "Absent"}] string Ensure;
+};

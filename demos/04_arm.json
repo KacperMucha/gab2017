@@ -1,0 +1,21 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "",
+    "parameters": {  },
+    "variables": {  },
+    "resources": [  ],
+    "outputs": {  }
+}
+
+"variables": {
+    "location": "[resourceGroup().location]",
+    "usernameAndPassword": "[concat(parameters('username'), ':', parameters('password'))]",
+    "authorizationHeader": "[concat('Basic ', base64(variables('usernameAndPassword')))]"
+}
+
+"outputs": {
+    "<outputName>" : {
+        "type" : "<type-of-output-value>",
+        "value": "<output-value-expression>"
+    }
+}

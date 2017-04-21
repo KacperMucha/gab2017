@@ -1,0 +1,30 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "value": "azadmin"
+        },
+        "adminPassword": {
+            "value": "zxcVBN123$%^"
+        },
+        "dcVmSize": {
+            "value": "Standard_DS1_v2"
+        },
+        "sccmVmSize": {
+            "value": "Standard_DS2_v2"
+        },
+        "sqlVmSize": {
+            "value": "Standard_DS1_v2"
+        },
+        "repositoryRootUrl": {
+            "value": "https://github.com/KacperMucha/gab2017/blob/master"
+        },
+        "virtualNetworkName": {
+            "value": "sccm-lab-vnet"
+        },
+        "subnetName": {
+            "value": "lan"
+        }
+    }
+}

@@ -1,0 +1,43 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "networkInterfaceName": {
+           "type": "string",
+           "metadata": {
+                "description": "Name of the network interface"
+            }
+        },
+        "location": {
+           "type": "string",
+           "metadata": {
+                "description": "Location of the network interface"
+            }
+        },
+        "apiVersion": {
+           "type": "string",
+           "metadata": {
+                "description": "Api version supported by the provider"
+            }
+        },
+        "ipConfigurations": {
+           "type": "array",
+           "metadata": {
+                "description": "IP configurations of the network interface"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "apiVersion": "[parameters('apiVersion')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaceName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "ipConfigurations": "[parameters('ipConfigurations')]"
+            }
+        }
+    ],
+    "outputs": {}
+}
