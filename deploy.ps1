@@ -11,6 +11,3 @@ $deploymentParameters = @{
 
 New-AzureRmResourceGroup -Name $resourceGroupName -Location $location -Force
 New-AzureRmResourceGroupDeployment @deploymentParameters
-Send-SlackMessage -Message "Finished SCCM lab deployment at $(Get-Date)"
-#Get-AzureRmVm -ResourceGroupName $resourceGroupName | Stop-AzureRmVm -Force
-#Send-SlackMessage -Message "Stopped SCCM lab VMs at at $(Get-Date)"
