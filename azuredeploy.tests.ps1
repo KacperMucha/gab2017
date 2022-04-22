@@ -5,15 +5,15 @@ $template = Split-Path -Leaf $here
 
 Describe "Template: $template" -Tags Unit {
     Context "Template Syntax" {
-        It "Has a JSON template" {        
+        It "Has a JSON template" {
             "$here\azuredeploy.json" | Should Exist
         }
-        
-        It "Has a parameters file" {        
+
+        It "Has a parameters file" {
             "$here\azuredeploy.parameters.json" | Should Exist
         }
-        
-        It "Has a metadata file" {        
+
+        It "Has a metadata file" {
             "$here\metadata.json" | Should Exist
         }
 
@@ -22,7 +22,7 @@ Describe "Template: $template" -Tags Unit {
                                   'contentVersion',
                                   'parameters',
                                   'variables',
-                                  'resources',                                
+                                  'resources',
                                   'outputs'
             $templateProperties = (Get-Content "$here\azuredeploy.json" | ConvertFrom-Json -ErrorAction SilentlyContinue) | Get-Member -MemberType NoteProperty | ForEach-Object Name
             $templateProperties | Should Be $expectedProperties
